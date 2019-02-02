@@ -56,36 +56,25 @@ class GithubRepository(
         // Get data source factory from the local cache
         val dataSourceFactory = cache.reposByName(query)
 
-        // Get the paged list
-        val data = LivePagedListBuilder(dataSourceFactory, DATABASE_PAGE_SIZE).build()
+        // Construct the boundary callback
+        val boundaryCallBack = RepoBoundaryCallBack(query, service, cache)
+        val networkErrors = boundaryCallBack.networkErrors
 
-        // Get the network errors exposed by the boundary callback
+        // Get the paged list
+        val data = LivePagedListBuilder(dataSourceFactory, DATABASE_PAGE_SIZE)
+                .setBoundaryCallback(boundaryCallBack)
+                .build()
+
+        // Get  the network errors exposed by the boundary callback
         return RepoSearchResult(data, networkErrors)
 
 
     }
 
-    fun requestMore(query: String) {
-        requestAndSaveData(query)
-    }
 
-    private fun requestAndSaveData(query: String) {
-        if (isRequestInProgress) return
 
-        isRequestInProgress = true
-        searchRepos(service, query, lastRequestedPage, NETWORK_PAGE_SIZE, { repos ->
-            cache.insert(repos) {
-                lastRequestedPage++
-                isRequestInProgress = false
-            }
-        }, { error ->
-            networkErrors.postValue(error)
-            isRequestInProgress = false
-        })
-    }
 
     companion object {
-        private const val NETWORK_PAGE_SIZE = 50
         private const val DATABASE_PAGE_SIZE = 20
     }
 
